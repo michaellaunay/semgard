@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semgard"
+version = "0.1.0"
+description = "Filtre sémantique contre l'injection de prompt : regex sur des étiquettes morphémiques MorphoRepr émises par de petits modèles."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "LGPL-3.0-or-later" }
+authors = [{ name = "Michaël Launay", email = "michaellaunay@logikascium.com" }]
+keywords = ["prompt-injection", "llm-security", "controlled-language", "morphorepr", "esperanto"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+  "Topic :: Security",
+]
+dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4.0"]
+model = ["transformers>=4.40", "torch>=2.2"]
+dev = ["pytest>=8.0"]
+# Dépendance prévue (ADR-001) : morphorepr en tant que bibliothèque, dès que le
+# parseur y sera paramétré par un inventaire. En attendant, semgard.parser en
+# porte une implémentation compatible.
+# morphorepr = ["morphorepr @ git+https://github.com/michaellaunay/morphorepr"]
+
+[project.scripts]
+semgard = "semgard.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["semgard*"]
+
+[tool.setuptools.package-data]
+semgard = ["lexicon/*.json", "lexicon/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
