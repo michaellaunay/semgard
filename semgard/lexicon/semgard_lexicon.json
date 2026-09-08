@@ -1,0 +1,114 @@
+{
+  "profile": "semgard",
+  "version": "0.1.0",
+  "description": "Inventaire fermé du profil SemGard : étiquetage sémantique de segments de texte pour la détection d'injection de prompt. Compatible avec la grammaire MorphoRepr (Annexe A) étendue par des classes de préfixes (forme, destinataire). ASCII strict.",
+  "prefix_order": ["form", "addressee", "polarity"],
+  "allow_free_roots": false,
+  "prefixes": {
+    "form": {
+      "kash": {
+        "meaning": "dissimulé : le segment n'est pas visible d'un lecteur humain normal (commentaire HTML, texte blanc, métadonnée, calque caché, zero-width)",
+        "esperanto": "kaŝ- (kaŝi, cacher)",
+        "covers": "tout contenu extrait d'un canal non affiché",
+        "excludes": "contenu visible mais discret (bas de page, petite police)"
+      },
+      "kod": {
+        "meaning": "encodé : le segment a été obtenu par décodage (base64, hexadécimal, rot13, homoglyphes normalisés)",
+        "esperanto": "kod- (kodi, coder)",
+        "covers": "segments issus de l'étape de décodage",
+        "excludes": "texte simplement en langue étrangère"
+      }
+    },
+    "addressee": {
+      "vi": {
+        "meaning": "adressé au système IA (assistant, modèle, agent, outil) — deuxième personne dirigée vers la machine",
+        "esperanto": "vi (tu / vous)",
+        "covers": "you/tu/vous + assistant/AI/modèle/Claude/ChatGPT/system ; « as an AI » ; consignes de format de réponse",
+        "excludes": "deuxième personne adressée à un lecteur humain (mode d'emploi, ticket adressé à un collègue)"
+      }
+    },
+    "polarity": {
+      "mal": {
+        "meaning": "contraire : demande d'inverser ou de contredire le sujet (ignorer des règles, désobéir)",
+        "esperanto": "mal-",
+        "covers": "ignore, disregard, override, oublie, n'applique plus",
+        "excludes": "simple mention d'une règle"
+      },
+      "ne": {
+        "meaning": "absence : demande de ne pas faire / de retirer (ne pas mentionner, ne pas avertir)",
+        "esperanto": "ne",
+        "covers": "do not warn, ne mentionne pas, sans avertissement",
+        "excludes": "négation portant sur un fait (« le fichier n'existe pas »)"
+      }
+    }
+  },
+  "roots": {
+    "regul": {
+      "meaning": "règles, consignes système, instructions antérieures, garde-fous",
+      "esperanto": "regulo (règle)",
+      "covers": "instructions, system prompt, guidelines, policy, restrictions, consignes",
+      "excludes": "règles métier décrites dans un document (règlement intérieur cité)"
+    },
+    "rol": {
+      "meaning": "identité, persona, rôle que le système doit adopter",
+      "esperanto": "rolo (rôle)",
+      "covers": "you are now, act as, pretend, roleplay, DAN, tu es désormais",
+      "excludes": "rôle d'un personnage dans un récit sans adresse au système"
+    },
+    "ilo": {
+      "meaning": "outils, actions, exécution (appels d'outils, commandes, navigation, envoi)",
+      "esperanto": "ilo (outil)",
+      "covers": "execute, run, call, curl, send, fetch, exécute, lance, envoie, ouvre",
+      "excludes": "description d'un outil (documentation)"
+    },
+    "sekr": {
+      "meaning": "secrets et données sensibles : clés, mots de passe, jetons, données personnelles, contenu du prompt",
+      "esperanto": "sekreto (secret)",
+      "covers": "API key, password, token, credentials, system prompt contents, données confidentielles",
+      "excludes": "mot « secret » au sens narratif"
+    },
+    "elig": {
+      "meaning": "sortie : forme, contenu ou langue de la réponse attendue du système",
+      "esperanto": "eligo (sortie)",
+      "covers": "respond only with, answer in, output, print, réponds par, ta réponse doit",
+      "excludes": "sortie d'un programme décrite dans un log"
+    },
+    "dat": {
+      "meaning": "contenu neutre : données, log, prose informative sans adresse au système",
+      "esperanto": "dato (donnée) — racine de domaine MorphoRepr",
+      "covers": "lignes de log, champs de formulaire ordinaires, texte documentaire",
+      "excludes": "tout ce qui est couvert par une autre racine"
+    }
+  },
+  "infixes": {
+    "ig": {
+      "meaning": "causatif : faire faire, provoquer (faire sortir un secret, faire exécuter)",
+      "esperanto": "-ig-",
+      "covers": "verbes causatifs, chaînes d'actions imposées",
+      "excludes": "action directe du locuteur"
+    }
+  },
+  "suffixes": {
+    "u": {
+      "meaning": "directif (volitif) : instruction, ordre, demande adressée",
+      "esperanto": "-u",
+      "act": "directive"
+    },
+    "as": {
+      "meaning": "assertif : énoncé factuel ou descriptif",
+      "esperanto": "-as",
+      "act": "assertive"
+    },
+    "us": {
+      "meaning": "hypothétique / fictionnel : imagine, suppose, dans un scénario",
+      "esperanto": "-us",
+      "act": "hypothetical"
+    },
+    "o": {
+      "meaning": "nominal : mention d'une entité sans acte de langage marqué",
+      "esperanto": "-o",
+      "act": "mention"
+    }
+  },
+  "reserved": ["kash", "kod", "vi", "mal", "ne", "ig", "u", "as", "us", "o"]
+}
