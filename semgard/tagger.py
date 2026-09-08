@@ -1,18 +1,18 @@
-"""Étape 5 du pipeline : étiquetage sémantique des segments en expressions MorphoRepr.
+"""Pipeline step 5: semantic tagging of segments as MorphoRepr expressions.
 
-Un étiqueteur reçoit un ``Segment`` et retourne une ``Expression`` du profil
-SemGard, par exemple ``0.83·vi-mal-regul-u + 0.41·elig-u``.
+A tagger receives a ``Segment`` and returns an ``Expression`` from the SemGard
+profile, for example ``0.83·vi-mal-regul-u + 0.41·elig-u``.
 
-Deux implémentations :
+Two implementations:
 
-- ``HeuristicTagger`` — déterministe, lexiques fermés, sans dépendance. C'est
-  la baseline (et le générateur de pseudo-labels pour amorcer un corpus) ;
-- ``ModelTagger`` — interface pour un petit encodeur multi-têtes (ModernBERT /
-  DeBERTa-v3, ONNX/int8) qui prédit (forme, destinataire, polarité, racine,
-  causatif, acte) et une confiance ; à entraîner sur le corpus annoté.
+- ``HeuristicTagger`` — deterministic, closed lexicons, no dependency. It is
+  the baseline and pseudo-label generator used to bootstrap a corpus;
+- ``ModelTagger`` — interface for a small multi-head encoder (ModernBERT /
+  DeBERTa-v3, ONNX/int8) that predicts form, addressee, polarity, root,
+  causative, act, and confidence; to be trained on the annotated corpus.
 
-Dans les deux cas la sortie passe par ``parser.make_word`` : une chaîne qui
-ne parse pas n'est jamais émise.
+In both cases output goes through ``parser.make_word``: an unparsable chain is
+never emitted.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from .inventory import Inventory
 from .normalize import Segment
 from .parser import Expression, Term, make_word
 
-# --- lexiques fermés (FR/EN) -------------------------------------------------
+# --- closed French/English lexicons ------------------------------------------
 
 _AI_TERMS = re.compile(
     r"\b(?:assistant|ai|a\.i\.|ia|chatbot|bot|llm|language\s+model|mod[èe]le(?:\s+de\s+langage)?|model|claude|chatgpt|gpt(?:-?\d)?|"
@@ -107,7 +107,7 @@ class Tagger(Protocol):
 
 @dataclass
 class HeuristicTagger:
-    """Étiqueteur déterministe v0 (baseline, générateur de pseudo-labels)."""
+    """Deterministic v0 tagger (baseline and pseudo-label generator)."""
 
     inventory: Inventory = field(default_factory=Inventory.semgard)
     max_terms: int = 3
@@ -126,7 +126,7 @@ class HeuristicTagger:
         hypothetical = bool(_HYPOTHETICAL.search(text))
         ai_term = bool(_AI_TERMS.search(text))
         second = bool(_SECOND_PERSON.search(text))
-        # Un impératif est adressé à la 2e personne même sans pronom (« Ignore… », « Affiche… »).
+        # An imperative targets the second person even without an explicit pronoun.
         imperative = any(str(e).startswith("imperative_lead") for e in dm["evidence"])  # type: ignore[union-attr]
         override = bool(_OVERRIDE.search(text))
         suppress = bool(_SUPPRESS.search(text))
@@ -135,7 +135,7 @@ class HeuristicTagger:
         topic_hits = {root: len(rx.findall(text)) for root, rx in _TOPICS.items()}
         topic_hits = {r: n for r, n in topic_hits.items() if n}
 
-        # Acte de langage → suffixe.
+        # Speech act → suffix.
         if hypothetical and (directive >= 0.25 or second):
             suffix = "us"
         elif directive >= 0.5:
@@ -145,7 +145,7 @@ class HeuristicTagger:
         else:
             suffix = "as"
 
-        # Destinataire : « vi- » si terme IA, ou si 2e personne + sujet intrinsèquement machine.
+        # Addressee: ``vi-`` for an AI term, or second person + an intrinsically machine topic.
         machine_topic = bool({"regul", "rol", "elig"} & topic_hits.keys())
         addressee = 0.0
         if ai_term and (second or suffix in ("u", "us")):
@@ -191,17 +191,17 @@ class HeuristicTagger:
 
 @dataclass
 class ModelTagger:
-    """Interface d'un étiqueteur neuronal (petit encodeur multi-têtes).
+    """Interface for a neural tagger (small multi-head encoder).
 
-    Contrat : ``model_path`` désigne un modèle exporté avec des têtes
-    ``form``, ``addressee``, ``polarity``, ``root``, ``causative``, ``act`` ;
-    la sortie est convertie en chaînes via ``make_word`` et le coefficient est
-    la probabilité de la racine (calibrée). Non implémenté dans la v0.1 :
-    le corpus d'entraînement n'existe pas encore (voir la spécification, §S5).
+    Contract: ``model_path`` points to an exported model with ``form``,
+    ``addressee``, ``polarity``, ``root``, ``causative``, and ``act`` heads;
+    output is converted to chains through ``make_word`` and the coefficient is
+    the calibrated root probability. Not implemented in v0.1 because the
+    training corpus does not exist yet (see the specification, §5).
     """
 
     model_path: str
     inventory: Inventory = field(default_factory=Inventory.semgard)
 
     def tag(self, segment: Segment) -> Expression:
-        raise NotImplementedError("ModelTagger : entraînement prévu après constitution du corpus (spec §S5)")
+        raise NotImplementedError("ModelTagger: training is planned after the corpus is assembled (spec §5)")

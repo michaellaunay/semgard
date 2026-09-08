@@ -1,7 +1,7 @@
-"""Extracteur PDF (optionnel, dépend de pypdf).
+"""Optional PDF extractor (requires pypdf).
 
-Canaux : texte des pages (``body``), métadonnées du document (``metadata``),
-annotations et champs de formulaire (``hidden``).
+Channels: page text (``body``), document metadata (``metadata``), annotations
+and form fields (``hidden``).
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ def extract_pdf(path: str | Path) -> list[Segment]:
     try:
         from pypdf import PdfReader
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("pip install 'semgard[pdf]' pour l'extraction PDF") from exc
+        raise RuntimeError("install PDF extraction support with: pip install 'semgard[pdf]'") from exc
 
     reader = PdfReader(str(path))
     source = Path(path).name
@@ -37,6 +37,34 @@ def extract_pdf(path: str | Path) -> list[Segment]:
                 continue
             if contents:
                 segs.append(Segment(contents, 0, len(contents), channel="hidden", kind="annotation", source=f"{source}#p{n + 1}"))
+    # AcroForm fields: some widgets expose values through /Annots, but
+    # ``get_fields`` also covers fields defined at the form level.
+    try:
+        fields = reader.get_fields() or {}
+    except Exception:  # pragma: no cover - malformed PDF or pypdf backend issue
+        fields = {}
+    seen_field_values: set[tuple[str, str]] = set()
+    for name, field in fields.items():
+        if not isinstance(field, dict):
+            continue
+        raw = field.get("/V") or field.get("/DV")
+        if raw is None:
+            continue
+        value = str(raw).strip()
+        key = (str(name), value)
+        if value and key not in seen_field_values:
+            seen_field_values.add(key)
+            segs.append(
+                Segment(
+                    value,
+                    0,
+                    len(value),
+                    channel="hidden",
+                    kind="form_field",
+                    source=f"{source}:field:{name}",
+                )
+            )
+
     meta = reader.metadata or {}
     for key, value in meta.items():
         value = str(value).strip()

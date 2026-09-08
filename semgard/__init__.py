@@ -1,7 +1,7 @@
-"""SemGard — filtre sémantique contre l'injection de prompt.
+"""SemGard — semantic guard against prompt injection.
 
-Regex sur des étiquettes morphémiques (profil MorphoRepr « semgard ») émises
-par un étiqueteur (heuristique v0, petit modèle à venir).
+Regular expressions over morphemic tags (the MorphoRepr ``semgard`` profile)
+emitted by a tagger (v0 heuristic, small model planned).
 """
 
 from .engine import Engine, Report

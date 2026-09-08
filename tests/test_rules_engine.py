@@ -42,7 +42,7 @@ def test_hidden_markdown_comment(engine):
     hidden = [s for s in r.segments if s.channel == "hidden"]
     assert len(hidden) == 1
     assert "hidden_directive" in _rule_ids(r)
-    # Le corps visible reste propre dans le texte reconstitué.
+    # Visible body text remains clean in reconstructed text.
     assert "ventes progressent" in r.quarantined_text()
 
 
@@ -84,7 +84,7 @@ def test_report_json_provenance(engine):
     d = engine.scan_text("hello world").to_dict()
     assert d["provenance"]["tagger"] == "HeuristicTagger"
     assert d["provenance"]["lexicon"].startswith("semgard@")
-    assert d["segments"][0]["expression"].endswith("dat-o")  # fragment court : mention
+    assert d["segments"][0]["expression"].endswith("dat-o")  # short fragment: mention
 
 
 def test_log_quoted_field_injection_blocked_and_line_quarantined(engine):
@@ -100,3 +100,66 @@ def test_log_quoted_field_injection_blocked_and_line_quarantined(engine):
     assert "ERROR 500" in out
     assert "attacker@evil.com" not in out
     assert "[SEMGARD:block:" in out
+
+
+def test_stream_rule_does_not_cross_channels(inv):
+    from semgard.normalize import Segment
+    from semgard.parser import parse_expression
+
+    rs = RuleSet.from_dict({
+        "rules": [{
+            "id": "cross",
+            "stream": r"vi-rol-us.*vi-sekr-u",
+            "within": 2,
+            "min_gamma": 0.5,
+            "action": "block",
+            "severity": "high",
+        }]
+    })
+    segments = [
+        Segment("persona", 0, 7, channel="body"),
+        Segment("secret", 8, 14, channel="hidden"),
+    ]
+    expressions = [
+        parse_expression("0.90·vi-rol-us", inv),
+        parse_expression("0.90·vi-sekr-u", inv),
+    ]
+    assert rs.apply(segments, expressions) == []
+
+
+def test_stream_finding_span_starts_at_actual_match(inv):
+    from semgard.normalize import Segment
+    from semgard.parser import parse_expression
+
+    rs = RuleSet.from_dict({
+        "rules": [{
+            "id": "sequence",
+            "stream": r"vi-rol-us(?:.|\n)*vi-sekr-u",
+            "within": 3,
+            "min_gamma": 0.5,
+            "action": "block",
+            "severity": "high",
+        }]
+    })
+    segments = [Segment("neutral", 0, 7), Segment("persona", 8, 15), Segment("secret", 16, 22)]
+    expressions = [
+        parse_expression("0.90·dat-as", inv),
+        parse_expression("0.90·vi-rol-us", inv),
+        parse_expression("0.90·vi-sekr-u", inv),
+    ]
+    findings = rs.apply(segments, expressions)
+    assert findings
+    assert findings[0].span_segments == (1, 2)
+
+
+def test_ruleset_rejects_invalid_policy_values():
+    import pytest
+
+    with pytest.raises(ValueError):
+        RuleSet.from_dict({"rules": [{"id": "x", "match": "x", "where": "typo"}]})
+    with pytest.raises(ValueError):
+        RuleSet.from_dict({"rules": [{"id": "x", "match": "x", "min_gamma": 1.2}]})
+    with pytest.raises(ValueError):
+        RuleSet.from_dict({"rules": [{"id": "x", "stream": "x", "within": 0}]})
+    with pytest.raises(ValueError):
+        RuleSet.from_dict({"rules": [{"id": "x", "match": "x"}, {"id": "x", "lexical": "y"}]})

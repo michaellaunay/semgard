@@ -1,8 +1,9 @@
-"""CLI : ``semgard scan``, ``semgard tag``, ``semgard lexicon``."""
+"""Command-line interface: ``semgard scan``, ``semgard tag``, ``semgard lexicon``."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from .engine import Engine
@@ -20,11 +21,11 @@ def _engine(args: argparse.Namespace) -> Engine:
 def cmd_scan(args: argparse.Namespace) -> int:
     engine = _engine(args)
     exit_code = 0
+    reports = []
     for path in args.paths:
         report = engine.scan_file(path, fmt=args.format) if path != "-" else engine.scan_text(sys.stdin.read(), fmt=args.format or "text", source="<stdin>")
-        if args.json:
-            print(report.to_json())
-        else:
+        reports.append(report)
+        if not args.json:
             print(f"== {report.source} : {report.verdict.upper()}")
             for f in report.findings:
                 seg = report.segments[f.segment_index]
@@ -37,6 +38,10 @@ def cmd_scan(args: argparse.Namespace) -> int:
             exit_code = 2
         elif report.verdict == "mark" and exit_code == 0:
             exit_code = 1
+
+    if args.json:
+        payload = reports[0].to_dict() if len(reports) == 1 else [report.to_dict() for report in reports]
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
     return exit_code
 
 
@@ -52,34 +57,34 @@ def cmd_tag(args: argparse.Namespace) -> int:
 
 def cmd_lexicon(args: argparse.Namespace) -> int:
     inv = Inventory.semgard()
-    print(f"profil {inv.profile} v{inv.version} — ordre des préfixes : {' < '.join(inv.prefix_order)}")
+    print(f"profile {inv.profile} v{inv.version} — prefix order: {' < '.join(inv.prefix_order)}")
     for klass in inv.prefix_order:
         toks = [p for p, k in inv.prefixes.items() if k == klass]
-        print(f"  préfixes[{klass}] : {', '.join(toks)}")
-    print(f"  racines           : {', '.join(sorted(inv.roots))}")
-    print(f"  infixes           : {', '.join(sorted(inv.infixes))}")
-    print(f"  suffixes          : {', '.join(sorted(inv.suffixes))}")
+        print(f"  prefixes[{klass}] : {', '.join(toks)}")
+    print(f"  roots              : {', '.join(sorted(inv.roots))}")
+    print(f"  infixes            : {', '.join(sorted(inv.infixes))}")
+    print(f"  suffixes           : {', '.join(sorted(inv.suffixes))}")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="semgard", description="Filtre sémantique contre l'injection de prompt (notation MorphoRepr).")
+    parser = argparse.ArgumentParser(prog="semgard", description="Semantic guard against prompt injection (MorphoRepr notation).")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("scan", help="analyser des fichiers ('-' pour stdin)")
+    p = sub.add_parser("scan", help="scan files ('-' for stdin)")
     p.add_argument("paths", nargs="+")
     p.add_argument("--format", "-f", choices=["text", "log", "markdown", "field", "pdf"], default=None)
-    p.add_argument("--rules", "-r", help="fichier YAML de règles")
+    p.add_argument("--rules", "-r", help="YAML rule file")
     p.add_argument("--json", action="store_true")
-    p.add_argument("--verbose", "-v", action="store_true", help="afficher l'expression de chaque segment")
+    p.add_argument("--verbose", "-v", action="store_true", help="show the expression for every segment")
     p.set_defaults(func=cmd_scan)
 
-    p = sub.add_parser("tag", help="étiqueter un texte court")
+    p = sub.add_parser("tag", help="tag a short text")
     p.add_argument("text")
     p.add_argument("--channel", choices=["body", "hidden", "decoded", "metadata"], default="body")
     p.set_defaults(func=cmd_tag)
 
-    p = sub.add_parser("lexicon", help="afficher l'inventaire du profil semgard")
+    p = sub.add_parser("lexicon", help="show the semgard profile inventory")
     p.set_defaults(func=cmd_lexicon)
 
     args = parser.parse_args(argv)

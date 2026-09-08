@@ -1,22 +1,22 @@
-"""Classifieur ``directive_mood`` : le segment est-il une instruction ?
+"""``directive_mood`` classifier: is the segment an instruction?
 
-Livrable mutualisé avec MorphoRepr : la propriété de sortie
-``directive_mood`` est la contrepartie mesurable du suffixe volitif ``-u``,
-absente des quatre propriétés robustes de la v0.30 (négation, temps, code,
-modalité conditionnelle). Le même code est destiné à être versé dans
-``morphorepr/classifiers/directive_mood.py`` avec son fichier de calibration.
+Shared deliverable with MorphoRepr: the ``directive_mood`` output property is
+the measurable counterpart of the volitive ``-u`` suffix, absent from the four
+robust v0.30 properties (negation, tense, code, conditional modality). The same
+code is intended to be contributed to ``morphorepr/classifiers/directive_mood.py``
+with its calibration file.
 
-Heuristique v1, français + anglais, sans dépendance. Signaux :
+Dependency-free v1 heuristic for French and English. Signals:
 
-1. verbe à l'impératif en tête de segment (lexique fermé) ;
-2. tournure déontique ou assignation performative (« you must », « tu dois »,
-   « you are now », « tu es désormais ») ;
-3. marqueur de rupture temporelle (« from now on », « désormais ») ;
-4. impératif négatif (« do not », « ne … pas » + verbe) ;
-5. formule de sortie contrainte (« respond only with », « réponds uniquement »).
+1. an imperative verb at the start of the segment (closed lexicon);
+2. a deontic construction or performative assignment (``you must``, ``tu dois``,
+   ``you are now``, ``tu es désormais``);
+3. a temporal reset marker (``from now on``, ``désormais``);
+4. a negative imperative (``do not``, ``ne … pas`` + verb);
+5. a constrained-output formula (``respond only with``, ``réponds uniquement``).
 
-Le score agrège les signaux ; ``present`` est vrai au-delà de 0,5.
-À calibrer sur ``calibration/directive_mood_test.json`` avant tout pilote.
+The score aggregates these signals; ``present`` is true at or above 0.5.
+Calibrate it on ``calibration/directive_mood_test.json`` before any pilot.
 """
 
 from __future__ import annotations

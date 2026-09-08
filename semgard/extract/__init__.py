@@ -1,8 +1,8 @@
-"""Étape 1 du pipeline : extraction par format vers des segments.
+"""Pipeline step 1: format-specific extraction into segments.
 
-Chaque extracteur retourne une liste de ``Segment`` avec offsets, canal
-(``body``, ``hidden``, ``metadata``) et type. Le choix de l'extracteur se fait
-sur l'extension ou explicitement.
+Each extractor returns a list of ``Segment`` objects with offsets, channel
+(``body``, ``hidden``, ``metadata``), and kind. The extractor is selected from
+the file extension or explicitly.
 """
 
 from __future__ import annotations

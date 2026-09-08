@@ -1,20 +1,19 @@
-"""Parseur d'expressions MorphoRepr paramétré par un ``Inventory``.
+"""MorphoRepr expression parser parameterized by an ``Inventory``.
 
-Grammaire (Annexe A du papier MorphoRepr, étendue par les classes de préfixes) :
+Grammar (Appendix A of the MorphoRepr paper, extended with prefix classes):
 
-    expression ::= terme ('+' terme)*
-    terme      ::= coefficient '·' mot
-    mot        ::= (préfixe)* racine (infixe)* suffixe
+    expression ::= term ('+' term)*
+    term       ::= coefficient '·' word
+    word       ::= (prefix)* root (infix)* suffix
 
-Segmentation sur les tirets, puis classement des segments (note
-d'implémentation de la règle A.2-8) : les préfixes sont consommés en tête tant
-qu'il reste, plus loin, un segment racine possible — ce qui règle le double
-rôle ``mal``/``ne``.
+Words are split on hyphens and the resulting segments are classified (an
+implementation detail of rule A.2-8): leading prefixes are consumed while a
+possible root remains later in the word, which resolves the dual role of
+``mal``/``ne``.
 
-Cette implémentation est destinée à être remplacée par
-``morphorepr.utils.morphorepr_parser`` lorsque celui-ci acceptera un
-inventaire ; l'API (``parse_word``, ``parse_expression``) est conçue pour être
-identique.
+This implementation is intended to be replaced by
+``morphorepr.utils.morphorepr_parser`` once it accepts an inventory; the API
+(``parse_word``, ``parse_expression``) is designed to remain identical.
 """
 
 from __future__ import annotations
@@ -45,7 +44,7 @@ class Word:
     def prefix_classes(self, inv: Inventory) -> tuple[str, ...]:
         return tuple(inv.prefix_class(p) or "?" for p in self.prefixes)
 
-    def __str__(self) -> str:  # pragma: no cover - lisibilité
+    def __str__(self) -> str:  # pragma: no cover - readability
         return self.chain
 
 
@@ -74,58 +73,66 @@ class Expression:
         return tuple(t.chain for t in self.terms)
 
     def max_coefficient(self, pattern: re.Pattern[str]) -> float:
-        """Coefficient maximal des termes dont la chaîne satisfait ``pattern``."""
+        """Maximum coefficient among terms whose chain matches ``pattern``."""
         return max((t.coefficient for t in self.terms if pattern.search(t.chain)), default=0.0)
 
 
 def parse_word(chain: str, inv: Inventory) -> Word:
     segs = chain.strip().split("-")
     if len(segs) < 2:
-        raise ParseError(f"mot trop court (racine + suffixe requis) : {chain!r}")
+        raise ParseError(f"word too short (root + suffix required): {chain!r}")
     suffix = segs[-1]
     if not inv.is_suffix(suffix):
-        raise ParseError(f"suffixe inconnu {suffix!r} dans {chain!r}")
+        raise ParseError(f"unknown suffix {suffix!r} in {chain!r}")
     body = segs[:-1]
 
-    # Préfixes : consommés tant qu'un segment racine existe plus loin.
+    # Prefixes: consume them while a root segment remains later in the word.
     i = 0
     while i < len(body) - 1 and inv.is_prefix(body[i]) and any(inv.is_root(s) for s in body[i + 1 :]):
         i += 1
     prefixes = tuple(body[:i])
     root = body[i]
     if not inv.is_root(root):
-        raise ParseError(f"racine inconnue {root!r} dans {chain!r}")
+        raise ParseError(f"unknown root {root!r} in {chain!r}")
     infixes = tuple(body[i + 1 :])
     for inf in infixes:
         if not inv.is_infix(inf):
-            raise ParseError(f"infixe inconnu {inf!r} dans {chain!r}")
+            raise ParseError(f"unknown infix {inf!r} in {chain!r}")
 
-    # Ordre canonique des classes de préfixes (profil semgard).
+    # Canonical order of prefix classes (semgard profile).
     if inv.prefix_order:
         order = {k: n for n, k in enumerate(inv.prefix_order)}
         ranks = [order.get(inv.prefix_class(p) or "", len(order)) for p in prefixes]
         if ranks != sorted(ranks):
-            raise ParseError(f"ordre de préfixes non canonique dans {chain!r} (attendu {inv.prefix_order})")
+            raise ParseError(f"non-canonical prefix order in {chain!r} (expected {inv.prefix_order})")
     return Word(prefixes, root, infixes, suffix)
 
 
 def parse_term(text: str, inv: Inventory) -> Term:
     m = TERM_RE.match(text)
     if not m:
-        raise ParseError(f"terme mal formé : {text!r}")
+        raise ParseError(f"malformed term: {text!r}")
     coef = float(m.group("coef").replace(",", "."))
     if not 0.01 <= coef <= 1.0:
-        raise ParseError(f"coefficient hors [0.01 ; 1.00] : {coef}")
+        raise ParseError(f"coefficient outside [0.01, 1.00]: {coef}")
     return Term(round(coef, 2), parse_word(m.group("word"), inv))
 
 
 def parse_expression(text: str, inv: Inventory) -> Expression:
-    terms = tuple(parse_term(part, inv) for part in text.split("+") if part.strip())
-    if not terms:
-        raise ParseError("expression vide")
+    if not text or not text.strip():
+        raise ParseError("empty expression")
+
+    parts = text.split("+")
+    if any(not part.strip() for part in parts):
+        raise ParseError(f"malformed expression (empty term around '+'): {text!r}")
+
+    terms = tuple(parse_term(part, inv) for part in parts)
+    coefficients = tuple(term.coefficient for term in terms)
+    if coefficients != tuple(sorted(coefficients, reverse=True)):
+        raise ParseError("terms are not ordered by decreasing coefficient")
     return Expression(terms)
 
 
 def make_word(inv: Inventory, root: str, *, prefixes: tuple[str, ...] = (), infixes: tuple[str, ...] = (), suffix: str) -> Word:
-    """Construit et valide un mot (utilisé par l'étiqueteur)."""
+    """Build and validate a word (used by the tagger)."""
     return parse_word("-".join((*prefixes, root, *infixes, suffix)), inv)

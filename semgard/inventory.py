@@ -1,12 +1,12 @@
-"""Inventaire morphémique paramétrable.
+"""Parameterized morpheme inventory.
 
-Cet objet est l'interface que SemGard attend du parseur MorphoRepr : un
-parseur ne connaît pas ses morphèmes en dur, il reçoit un ``Inventory``.
-Le profil « semgard » est chargé depuis ``lexicon/semgard_lexicon.json`` ;
-un profil « sae » (inventaire de l'Annexe A du papier MorphoRepr) est fourni
-pour vérifier que le parseur reste compatible avec les exemples du papier.
+This object is the interface SemGard expects from the MorphoRepr parser: a
+parser does not hard-code its morphemes; it receives an ``Inventory``.
+The ``semgard`` profile is loaded from ``lexicon/semgard_lexicon.json``; a
+``sae`` profile (the inventory from Appendix A of the MorphoRepr paper) is
+provided to verify that the parser remains compatible with the paper examples.
 
-Voir docs/fr/adr/ADR-001-notation-morphorepr.md.
+See docs/en/adr/ADR-001-morphorepr-notation.md.
 """
 
 from __future__ import annotations
@@ -23,11 +23,11 @@ FREE_ROOT_RE = re.compile(r"^[a-z]{2,5}$")
 
 @dataclass(frozen=True)
 class Inventory:
-    """Inventaire fermé (ou semi-ouvert) de morphèmes.
+    """Closed (or semi-open) morpheme inventory.
 
-    ``prefixes`` associe chaque préfixe à sa classe (``form``, ``addressee``,
-    ``polarity`` …). ``prefix_order`` fixe l'ordre canonique des classes de
-    préfixes dans un mot, ce qui rend les regex sur chaînes stables.
+    ``prefixes`` maps each prefix to its class (``form``, ``addressee``,
+    ``polarity``, ...). ``prefix_order`` defines the canonical order of prefix
+    classes in a word, which keeps string regexes stable.
     """
 
     profile: str
@@ -41,7 +41,7 @@ class Inventory:
     dual_role: frozenset[str] = field(default_factory=frozenset)
     meta: Mapping[str, object] = field(default_factory=dict)
 
-    # -- prédicats ---------------------------------------------------------
+    # -- predicates ---------------------------------------------------------
     def is_prefix(self, seg: str) -> bool:
         return seg in self.prefixes
 
@@ -64,7 +64,7 @@ class Inventory:
     def prefix_class(self, seg: str) -> str | None:
         return self.prefixes.get(seg)
 
-    # -- construction ------------------------------------------------------
+    # -- construction -------------------------------------------------------
     @classmethod
     def from_dict(cls, data: Mapping[str, object]) -> "Inventory":
         prefixes: dict[str, str] = {}
@@ -72,14 +72,29 @@ class Inventory:
         for klass, members in raw_prefixes.items():  # type: ignore[union-attr]
             for tok in members:
                 if tok in prefixes:
-                    raise ValueError(f"préfixe dupliqué : {tok}")
+                    raise ValueError(f"duplicate prefix: {tok}")
                 prefixes[tok] = klass
         roots = frozenset(data.get("roots", {}))  # type: ignore[arg-type]
         infixes = frozenset(data.get("infixes", {}))  # type: ignore[arg-type]
         suffixes = frozenset(data.get("suffixes", {}))  # type: ignore[arg-type]
+        prefix_tokens = frozenset(prefixes)
+
+        if prefix_tokens & infixes or prefix_tokens & suffixes or infixes & suffixes:
+            collisions = sorted((prefix_tokens & infixes) | (prefix_tokens & suffixes) | (infixes & suffixes))
+            raise ValueError(f"collision between affix classes: {', '.join(collisions)}")
         for tok in roots:
             if tok in infixes or tok in suffixes:
-                raise ValueError(f"racine en collision avec un affixe : {tok}")
+                raise ValueError(f"root collides with an affix: {tok}")
+
+        prefix_order = tuple(data.get("prefix_order", ()))  # type: ignore[arg-type]
+        if prefix_order:
+            classes = set(prefixes.values())
+            if set(prefix_order) != classes or len(prefix_order) != len(set(prefix_order)):
+                raise ValueError(
+                    "prefix_order must contain each prefix class exactly once "
+                    f"(classes={sorted(classes)}, received={list(prefix_order)})"
+                )
+
         dual = frozenset(t for t in roots if t in prefixes)
         return cls(
             profile=str(data.get("profile", "custom")),
@@ -88,7 +103,7 @@ class Inventory:
             roots=roots,
             infixes=infixes,
             suffixes=suffixes,
-            prefix_order=tuple(data.get("prefix_order", ())),  # type: ignore[arg-type]
+            prefix_order=prefix_order,
             allow_free_roots=bool(data.get("allow_free_roots", False)),
             dual_role=dual,
             meta=dict(data),
@@ -101,17 +116,17 @@ class Inventory:
 
     @classmethod
     def semgard(cls) -> "Inventory":
-        """Profil SemGard embarqué (lexique fermé, ASCII)."""
+        """Bundled SemGard profile (closed lexicon, ASCII)."""
         ref = resources.files("semgard").joinpath("lexicon/semgard_lexicon.json")
         with ref.open(encoding="utf-8") as fh:
             return cls.from_dict(json.load(fh))
 
     @classmethod
     def sae(cls) -> "Inventory":
-        """Profil SAE : inventaire de l'Annexe A du papier MorphoRepr v0.30.
+        """SAE profile: inventory from Appendix A of the MorphoRepr v0.30 paper.
 
-        Sert uniquement à vérifier que ``semgard.parser`` reste compatible
-        avec les formes du papier (test de non-régression).
+        Used only to verify that ``semgard.parser`` remains compatible with
+        the paper forms (regression test).
         """
         return cls.from_dict(
             {

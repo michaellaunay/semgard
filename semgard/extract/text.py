@@ -1,4 +1,4 @@
-"""Extracteurs texte, log et markdown."""
+"""Text, log, and Markdown extractors."""
 
 from __future__ import annotations
 
@@ -9,18 +9,19 @@ from ..normalize import Segment
 _SENT_RE = re.compile(r"[^.!?\n]+[.!?]*\s*")
 _HTML_COMMENT_RE = re.compile(r"<!--(.*?)-->", re.S)
 _HIDDEN_SPAN_RE = re.compile(
-    r"<(?:span|div|p)[^>]*style=\"[^\"]*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0|color\s*:\s*(?:white|#fff(?:fff)?))[^\"]*\"[^>]*>(.*?)</(?:span|div|p)>",
+    r"<(?:span|div|p)[^>]*style\s*=\s*['\"][^'\"]*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0|color\s*:\s*(?:white|#fff(?:fff)?))[^'\"]*['\"][^>]*>(.*?)</(?:span|div|p)>",
     re.S | re.I,
 )
 _QUOTED_RE = re.compile(r"\"([^\"\n]{20,})\"|'([^'\n]{20,})'")
-_ALT_TITLE_RE = re.compile(r"\b(?:alt|title)=\"([^\"]{8,})\"", re.I)
+_ALT_TITLE_RE = re.compile(r"\b(?:alt|title)\s*=\s*['\"]([^'\"]{8,})['\"]", re.I)
+_MD_IMAGE_ALT_RE = re.compile(r"!\[([^]\n]{8,})\]\([^)]*\)")
 
 
 def extract_lines(text: str, source: str = "", kind: str = "line") -> list[Segment]:
-    """Une ligne = un segment ; les chaînes entre guillemets (≥ 20 car.) deviennent des sous-segments.
+    """One line = one segment; quoted strings (>= 20 chars) become child segments.
 
-    Dans un log, une instruction injectée vit presque toujours dans un champ cité
-    (``comment="…"``) : la ligne entière est assertive, le champ ne l'est pas.
+    In logs, an injected instruction commonly lives in a quoted field
+    (``comment="..."``): the whole line is assertive, while the field may not be.
     """
     segs: list[Segment] = []
     pos = 0
@@ -49,10 +50,15 @@ def extract_text_sentences(text: str, source: str = "", kind: str = "sentence") 
 
 
 def extract_markdown(text: str, source: str = "") -> list[Segment]:
-    """Corps en phrases + canaux cachés (commentaires HTML, spans invisibles, alt/title)."""
+    """Body sentences plus hidden channels (HTML comments, hidden spans, alt/title text)."""
     hidden: list[Segment] = []
     masked = text
-    for regex, kind in ((_HTML_COMMENT_RE, "comment"), (_HIDDEN_SPAN_RE, "hidden_span"), (_ALT_TITLE_RE, "attribute")):
+    for regex, kind in (
+        (_HTML_COMMENT_RE, "comment"),
+        (_HIDDEN_SPAN_RE, "hidden_span"),
+        (_ALT_TITLE_RE, "attribute"),
+        (_MD_IMAGE_ALT_RE, "image_alt"),
+    ):
         for m in regex.finditer(text):
             inner = m.group(1).strip()
             if inner:

@@ -1,24 +1,24 @@
-"""Étape 6 du pipeline : moteur de règles.
+"""Pipeline step 6: rule engine.
 
-Une règle est une regex sur des chaînes morphémiques (ou sur le flux de
-chaînes de segments consécutifs, ou sur le texte normalisé), un seuil de
-coefficient, une sévérité et une action. Format YAML :
+A rule is a regex over morphemic chains (or over a stream of consecutive
+segment chains, or normalized text), plus a coefficient threshold, severity,
+and action. YAML format:
 
     rules:
       - id: override_rules
-        match: "^(?:kash-|kod-)?vi-(?:mal-|ne-)?regul-\\S*-(?:u|us)$"   # sur chaque terme
+        match: "^(?:kash-|kod-)?vi-(?:mal-|ne-)?regul-\\S*-(?:u|us)$"   # on each term
         min_gamma: 0.6
         where: any            # any | body | hidden | decoded | metadata
         severity: high        # info | low | medium | high | critical
         action: quarantine    # log | mark | quarantine | block
       - id: persona_then_secret
-        stream: "vi-rol-\\S*-us(?:\\s+\\S+){0,3}?\\s+\\S*sekr-\\S*-u"        # sur le flux
+        stream: "vi-rol-\\S*-us(?:\\s+\\S+){0,3}?\\s+\\S*sekr-\\S*-u"        # on the stream
         within: 4
       - id: marker
-        lexical: "(?i)ignore (?:all|any|previous|prior|the above) instructions"  # sur le texte
+        lexical: "(?i)ignore (?:all|any|previous|prior|the above) instructions"  # on the text
         gamma: 0.5
 
-Les actions sont ordonnées ; le verdict d'un segment est l'action maximale.
+Actions are ordered; a segment verdict is the maximum action.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from .parser import Expression
 
 ACTIONS = ("log", "mark", "quarantine", "block")
 SEVERITIES = ("info", "low", "medium", "high", "critical")
+CHANNELS = ("any", "body", "hidden", "decoded", "metadata")
 
 
 @dataclass(frozen=True)
@@ -46,17 +47,25 @@ class Rule:
     stream: re.Pattern[str] | None = None
     lexical: re.Pattern[str] | None = None
     min_gamma: float = 0.5
-    gamma: float = 0.5  # coefficient attribué par une règle lexicale
+    gamma: float = 0.5  # coefficient assigned by a lexical rule
     where: str = "any"
     within: int = 3
     severity: str = "medium"
     action: str = "mark"
 
     def __post_init__(self) -> None:
+        if not self.id.strip():
+            raise ValueError("empty rule identifier")
         if sum(x is not None for x in (self.match, self.stream, self.lexical)) != 1:
-            raise ValueError(f"règle {self.id} : exactement un de match/stream/lexical requis")
+            raise ValueError(f"rule {self.id}: exactly one of match/stream/lexical is required")
         if self.action not in ACTIONS or self.severity not in SEVERITIES:
-            raise ValueError(f"règle {self.id} : action ou sévérité invalide")
+            raise ValueError(f"rule {self.id}: invalid action or severity")
+        if self.where not in CHANNELS:
+            raise ValueError(f"rule {self.id}: invalid channel {self.where!r}")
+        if not 0.0 <= self.min_gamma <= 1.0 or not 0.0 <= self.gamma <= 1.0:
+            raise ValueError(f"rule {self.id}: gamma/min_gamma must be within [0, 1]")
+        if self.within < 1:
+            raise ValueError(f"rule {self.id}: within must be >= 1")
 
     @classmethod
     def from_dict(cls, d: dict) -> "Rule":
@@ -101,7 +110,12 @@ class RuleSet:
 
     @classmethod
     def from_dict(cls, data: dict) -> "RuleSet":
-        return cls([Rule.from_dict(r) for r in data.get("rules", [])], version=str(data.get("version", "1")))
+        rules = [Rule.from_dict(r) for r in data.get("rules", [])]
+        ids = [rule.id for rule in rules]
+        if len(ids) != len(set(ids)):
+            duplicates = sorted({rule_id for rule_id in ids if ids.count(rule_id) > 1})
+            raise ValueError(f"duplicate rule identifiers: {', '.join(duplicates)}")
+        return cls(rules, version=str(data.get("version", "1")))
 
     @classmethod
     def default(cls) -> "RuleSet":
@@ -109,7 +123,7 @@ class RuleSet:
         with ref.open(encoding="utf-8") as fh:
             return cls.from_dict(yaml.safe_load(fh))
 
-    # -- application -------------------------------------------------------
+    # -- application --------------------------------------------------------
     def apply(self, segments: list[Segment], expressions: list[Expression]) -> list[Finding]:
         findings: list[Finding] = []
         for rule in self.rules:
@@ -152,26 +166,41 @@ class RuleSet:
                 yield Finding(rule.id, i, rule.gamma, rule.severity, rule.action, m.group(0), (i,))
 
     def _apply_stream(self, rule: Rule, segments: list[Segment], expressions: list[Expression]) -> Iterable[Finding]:
-        """Regex sur le flux : chaque segment est représenté par ses chaînes ≥ min_gamma, jointes par ' | '."""
+        """Apply a regex to streams kept separate by channel.
+
+        Each segment is represented by its chains >= ``min_gamma``, joined with
+        `` | ``. A ``where: any`` rule analyzes each channel independently, so
+        it cannot create an artificial sequence between, for example, visible
+        body text and metadata or a decoded segment.
+        """
         assert rule.stream is not None
-        # Le flux ne mélange pas les canaux : un segment ombre suit son parent.
-        tokens: list[str] = []
-        owners: list[int] = []
+        separator = " \n "
+
+        groups: dict[str, list[tuple[int, Expression]]] = {}
         for i, (seg, expr) in enumerate(zip(segments, expressions)):
-            if not self._in_scope(rule, seg):
-                continue
-            chains = [t.chain for t in expr.terms if t.coefficient >= rule.min_gamma] or ["_"]
-            tokens.append(" | ".join(chains))
-            owners.append(i)
-        # Fenêtre glissante de `within` segments.
-        for start in range(len(tokens)):
-            window = tokens[start : start + rule.within]
-            text = " \n ".join(window)
-            m = rule.stream.search(text)
-            if m:
-                # Segments effectivement couverts par le match.
-                covered = text[: m.end()].count(" \n ") + 1
-                span = tuple(owners[start : start + covered])
+            if self._in_scope(rule, seg):
+                groups.setdefault(seg.channel, []).append((i, expr))
+
+        for items in groups.values():
+            tokens: list[str] = []
+            owners: list[int] = []
+            for owner, expr in items:
+                chains = [t.chain for t in expr.terms if t.coefficient >= rule.min_gamma] or ["_"]
+                tokens.append(" | ".join(chains))
+                owners.append(owner)
+
+            for start in range(len(tokens)):
+                window = tokens[start : start + rule.within]
+                text = separator.join(window)
+                m = rule.stream.search(text)
+                if not m:
+                    continue
+
+                # Cover only the segments actually crossed by the match,
+                # not earlier segments merely present in the same window.
+                first_rel = text[: m.start()].count(separator)
+                last_rel = text[: m.end()].count(separator)
+                span = tuple(owners[start + first_rel : start + last_rel + 1])
                 gamma = max(
                     (t.coefficient for k in span for t in expressions[k].terms if t.coefficient >= rule.min_gamma),
                     default=rule.min_gamma,

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "semgard"
 version = "0.1.0"
-description = "Filtre sémantique contre l'injection de prompt : regex sur des étiquettes morphémiques MorphoRepr émises par de petits modèles."
+description = "Semantic guard against prompt injection using deterministic rules over MorphoRepr semantic tags."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "LGPL-3.0-or-later" }
@@ -22,9 +22,9 @@ dependencies = ["pyyaml>=6.0"]
 pdf = ["pypdf>=4.0"]
 model = ["transformers>=4.40", "torch>=2.2"]
 dev = ["pytest>=8.0"]
-# Dépendance prévue (ADR-001) : morphorepr en tant que bibliothèque, dès que le
-# parseur y sera paramétré par un inventaire. En attendant, semgard.parser en
-# porte une implémentation compatible.
+# Planned dependency (ADR-001): use morphorepr as a library once its parser is
+# parameterized by an inventory. Until then, semgard.parser carries a compatible
+# implementation.
 # morphorepr = ["morphorepr @ git+https://github.com/michaellaunay/morphorepr"]
 
 [project.scripts]
@@ -34,7 +34,7 @@ semgard = "semgard.cli:main"
 include = ["semgard*"]
 
 [tool.setuptools.package-data]
-semgard = ["lexicon/*.json", "lexicon/*.yaml"]
+semgard = ["lexicon/*.json", "lexicon/*.yaml", "classifiers/calibration/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,114 +1,129 @@
 {
   "profile": "semgard",
   "version": "0.1.0",
-  "description": "Inventaire fermé du profil SemGard : étiquetage sémantique de segments de texte pour la détection d'injection de prompt. Compatible avec la grammaire MorphoRepr (Annexe A) étendue par des classes de préfixes (forme, destinataire). ASCII strict.",
-  "prefix_order": ["form", "addressee", "polarity"],
+  "description": "Closed SemGard profile inventory for semantic tagging of text segments in prompt-injection detection. Compatible with the MorphoRepr grammar (Appendix A), extended with ordered prefix classes (form, addressee). Strict ASCII tags.",
+  "prefix_order": [
+    "form",
+    "addressee",
+    "polarity"
+  ],
   "allow_free_roots": false,
   "prefixes": {
     "form": {
       "kash": {
-        "meaning": "dissimulé : le segment n'est pas visible d'un lecteur humain normal (commentaire HTML, texte blanc, métadonnée, calque caché, zero-width)",
-        "esperanto": "kaŝ- (kaŝi, cacher)",
-        "covers": "tout contenu extrait d'un canal non affiché",
-        "excludes": "contenu visible mais discret (bas de page, petite police)"
+        "meaning": "hidden: the segment comes from an explicitly non-displayed or secondary channel (HTML comment/hidden element, metadata, zero-width)",
+        "esperanto": "kaŝ- (kaŝi, to hide)",
+        "covers": "content extracted from a non-displayed channel",
+        "excludes": "visible but unobtrusive content (footer, small font)"
       },
       "kod": {
-        "meaning": "encodé : le segment a été obtenu par décodage (base64, hexadécimal, rot13, homoglyphes normalisés)",
-        "esperanto": "kod- (kodi, coder)",
-        "covers": "segments issus de l'étape de décodage",
-        "excludes": "texte simplement en langue étrangère"
+        "meaning": "encoded: the segment was obtained by Base64 or hexadecimal decoding",
+        "esperanto": "kod- (kodi, to encode)",
+        "covers": "segments produced by Base64 or hexadecimal decoding",
+        "excludes": "text merely written in a foreign language"
       }
     },
     "addressee": {
       "vi": {
-        "meaning": "adressé au système IA (assistant, modèle, agent, outil) — deuxième personne dirigée vers la machine",
-        "esperanto": "vi (tu / vous)",
-        "covers": "you/tu/vous + assistant/AI/modèle/Claude/ChatGPT/system ; « as an AI » ; consignes de format de réponse",
-        "excludes": "deuxième personne adressée à un lecteur humain (mode d'emploi, ticket adressé à un collègue)"
+        "meaning": "addressed to the AI system (assistant, model, agent, tool) — second person directed at the machine",
+        "esperanto": "vi (you)",
+        "covers": "you/tu/vous + assistant/AI/model/Claude/ChatGPT/system; “as an AI”; response-format instructions",
+        "excludes": "second person addressed to a human reader (manual, ticket addressed to a colleague)"
       }
     },
     "polarity": {
       "mal": {
-        "meaning": "contraire : demande d'inverser ou de contredire le sujet (ignorer des règles, désobéir)",
+        "meaning": "contrary: asks to invert or contradict the topic (ignore rules, disobey)",
         "esperanto": "mal-",
-        "covers": "ignore, disregard, override, oublie, n'applique plus",
-        "excludes": "simple mention d'une règle"
+        "covers": "ignore, disregard, override, oublie, n’applique plus",
+        "excludes": "a mere mention of a rule"
       },
       "ne": {
-        "meaning": "absence : demande de ne pas faire / de retirer (ne pas mentionner, ne pas avertir)",
+        "meaning": "absence: asks not to do something or to suppress it (do not mention, do not warn)",
         "esperanto": "ne",
         "covers": "do not warn, ne mentionne pas, sans avertissement",
-        "excludes": "négation portant sur un fait (« le fichier n'existe pas »)"
+        "excludes": "negation of a fact (“the file does not exist”)"
       }
     }
   },
   "roots": {
     "regul": {
-      "meaning": "règles, consignes système, instructions antérieures, garde-fous",
-      "esperanto": "regulo (règle)",
+      "meaning": "rules, system instructions, previous instructions, guardrails",
+      "esperanto": "regulo (rule)",
       "covers": "instructions, system prompt, guidelines, policy, restrictions, consignes",
-      "excludes": "règles métier décrites dans un document (règlement intérieur cité)"
+      "excludes": "business rules described inside a document (quoted internal regulations)"
     },
     "rol": {
-      "meaning": "identité, persona, rôle que le système doit adopter",
-      "esperanto": "rolo (rôle)",
+      "meaning": "identity, persona, or role the system is asked to adopt",
+      "esperanto": "rolo (role)",
       "covers": "you are now, act as, pretend, roleplay, DAN, tu es désormais",
-      "excludes": "rôle d'un personnage dans un récit sans adresse au système"
+      "excludes": "the role of a fictional character without addressing the system"
     },
     "ilo": {
-      "meaning": "outils, actions, exécution (appels d'outils, commandes, navigation, envoi)",
-      "esperanto": "ilo (outil)",
+      "meaning": "tools, actions, and execution (tool calls, commands, navigation, sending)",
+      "esperanto": "ilo (tool)",
       "covers": "execute, run, call, curl, send, fetch, exécute, lance, envoie, ouvre",
-      "excludes": "description d'un outil (documentation)"
+      "excludes": "description of a tool in documentation"
     },
     "sekr": {
-      "meaning": "secrets et données sensibles : clés, mots de passe, jetons, données personnelles, contenu du prompt",
+      "meaning": "secrets and sensitive data: keys, passwords, tokens, personal data, prompt contents",
       "esperanto": "sekreto (secret)",
-      "covers": "API key, password, token, credentials, system prompt contents, données confidentielles",
-      "excludes": "mot « secret » au sens narratif"
+      "covers": "API key, password, token, credentials, system prompt contents, confidential data",
+      "excludes": "the word “secret” in a narrative sense"
     },
     "elig": {
-      "meaning": "sortie : forme, contenu ou langue de la réponse attendue du système",
-      "esperanto": "eligo (sortie)",
+      "meaning": "output: expected response form, content, or language",
+      "esperanto": "eligo (output)",
       "covers": "respond only with, answer in, output, print, réponds par, ta réponse doit",
-      "excludes": "sortie d'un programme décrite dans un log"
+      "excludes": "program output described in a log"
     },
     "dat": {
-      "meaning": "contenu neutre : données, log, prose informative sans adresse au système",
-      "esperanto": "dato (donnée) — racine de domaine MorphoRepr",
-      "covers": "lignes de log, champs de formulaire ordinaires, texte documentaire",
-      "excludes": "tout ce qui est couvert par une autre racine"
+      "meaning": "neutral content: data, logs, informative prose without addressing the system",
+      "esperanto": "dato (data) — MorphoRepr domain root",
+      "covers": "log lines, ordinary form fields, documentary text",
+      "excludes": "anything covered by another root"
     }
   },
   "infixes": {
     "ig": {
-      "meaning": "causatif : faire faire, provoquer (faire sortir un secret, faire exécuter)",
+      "meaning": "causative: cause or make something happen (make a secret leave, make a tool execute)",
       "esperanto": "-ig-",
-      "covers": "verbes causatifs, chaînes d'actions imposées",
-      "excludes": "action directe du locuteur"
+      "covers": "causative verbs, imposed action chains",
+      "excludes": "a direct action by the speaker"
     }
   },
   "suffixes": {
     "u": {
-      "meaning": "directif (volitif) : instruction, ordre, demande adressée",
+      "meaning": "directive (volitive): instruction, order, or addressed request",
       "esperanto": "-u",
       "act": "directive"
     },
     "as": {
-      "meaning": "assertif : énoncé factuel ou descriptif",
+      "meaning": "assertive: factual or descriptive statement",
       "esperanto": "-as",
       "act": "assertive"
     },
     "us": {
-      "meaning": "hypothétique / fictionnel : imagine, suppose, dans un scénario",
+      "meaning": "hypothetical / fictional: imagine, suppose, in a scenario",
       "esperanto": "-us",
       "act": "hypothetical"
     },
     "o": {
-      "meaning": "nominal : mention d'une entité sans acte de langage marqué",
+      "meaning": "nominal: mention of an entity without a marked speech act",
       "esperanto": "-o",
       "act": "mention"
     }
   },
-  "reserved": ["kash", "kod", "vi", "mal", "ne", "ig", "u", "as", "us", "o"]
+  "reserved": [
+    "kash",
+    "kod",
+    "vi",
+    "mal",
+    "ne",
+    "ig",
+    "u",
+    "as",
+    "us",
+    "o"
+  ]
 }

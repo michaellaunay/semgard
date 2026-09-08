@@ -1,4 +1,4 @@
-"""Orchestration du pipeline : extraction → normalisation → étiquetage → règles → rapport."""
+"""Pipeline orchestration: extraction → normalization → tagging → rules → report."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class Report:
         return max((f.action for f in self.findings), key=VERDICT_ORDER.__getitem__, default="clean")
 
     def segment_verdict(self, i: int, with_children: bool = False) -> str:
-        """Verdict d'un segment ; avec ``with_children``, hérite du pire verdict de ses sous-segments."""
+        """Return a segment verdict; with ``with_children``, inherit the worst child verdict."""
         idx = {i}
         if with_children:
             idx |= {k for k, s in enumerate(self.segments) if s.parent == i}
@@ -64,10 +64,10 @@ class Report:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
 
     def quarantined_text(self, marker: str = "[SEMGARD:{verdict}:{rule}]") -> str:
-        """Texte reconstitué où chaque segment signalé est remplacé par un marqueur.
+        """Reconstruct text with every flagged segment replaced by a marker.
 
-        Sortie destinée à la couche aval (encapsulation ``<data>``, refus d'outil).
-        Les segments ombre (décodés) ne sont pas réinjectés.
+        Intended for the downstream layer (``<data>`` encapsulation, tool denial).
+        Decoded shadow segments are not reinserted.
         """
         out: list[str] = []
         for i, seg in enumerate(self.segments):

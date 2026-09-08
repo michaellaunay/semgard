@@ -1,5 +1,7 @@
 # ADR-001 — Adopter MorphoRepr comme notation d'étiquettes, avec un profil fermé et un parseur paramétré
 
+[English version](../../en/adr/ADR-001-morphorepr-notation.md)
+
 **Statut** : accepté — 2026-09-08
 
 ## Contexte

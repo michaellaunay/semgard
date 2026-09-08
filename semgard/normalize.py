@@ -1,9 +1,9 @@
-"""Étape 2 du pipeline : normalisation et mise au jour des contenus encodés.
+"""Pipeline step 2: normalization and exposure of encoded content.
 
-- NFKC + suppression des caractères de largeur nulle (le texte visible
-  est conservé, les offsets d'origine sont gardés dans le segment) ;
-- détection des runs base64 / hexadécimal : le contenu décodé devient un
-  segment *ombre* de canal ``decoded`` (préfixe ``kod-`` à l'étiquetage).
+- NFKC plus removal of zero-width characters (visible text is preserved and
+  original offsets remain attached to the segment);
+- detection of Base64 / hexadecimal runs: decoded content becomes a *shadow*
+  segment on the ``decoded`` channel (``kod-`` prefix during tagging).
 """
 
 from __future__ import annotations
@@ -23,16 +23,16 @@ _PRINTABLE_RATIO = 0.9
 
 @dataclass
 class Segment:
-    """Unité d'analyse : une ligne, une phrase, un champ, une métadonnée."""
+    """Analysis unit: a line, sentence, field, or metadata item."""
 
     text: str
     start: int
     end: int
     channel: str = "body"  # body | hidden | decoded | metadata
     kind: str = "line"  # line | sentence | field | comment | meta
-    source: str = ""  # nom de fichier ou de champ
+    source: str = ""  # file or field name
     zero_width_removed: int = 0
-    parent: int | None = None  # index du segment d'origine pour les segments ombre
+    parent: int | None = None  # source-segment index for shadow segments
     tags: dict[str, object] = field(default_factory=dict)
 
 
@@ -53,7 +53,7 @@ def _mostly_printable(s: str) -> bool:
 
 
 def decode_candidates(text: str) -> list[tuple[str, str, int, int]]:
-    """Retourne (encodage, texte décodé, start, end) pour chaque run décodable."""
+    """Return (encoding, decoded text, start, end) for each decodable run."""
     found: list[tuple[str, str, int, int]] = []
     for m in _B64_RE.finditer(text):
         raw = m.group(0)
@@ -74,7 +74,7 @@ def decode_candidates(text: str) -> list[tuple[str, str, int, int]]:
 
 
 def normalize_segments(segments: list[Segment]) -> list[Segment]:
-    """Normalise chaque segment et ajoute les segments ombre décodés."""
+    """Normalize each segment and append decoded shadow segments."""
     out: list[Segment] = []
     for seg in segments:
         cleaned, n_zw = strip_zero_width(normalize_text(seg.text))

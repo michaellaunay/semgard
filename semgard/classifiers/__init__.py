@@ -1,8 +1,8 @@
-"""Classifieurs déterministes (mêmes conventions que ``morphorepr/classifiers``).
+"""Deterministic classifiers using the same conventions as ``morphorepr/classifiers``.
 
-Chaque classifieur expose ``classify(text) -> dict`` avec au minimum
-``present`` (bool), ``score`` (float ∈ [0,1]) et ``evidence`` (liste).
-Ce sont des heuristiques v1 à calibrer (``classifiers/calibration``).
+Each classifier exposes ``classify(text) -> dict`` with at least ``present``
+(bool), ``score`` (float in [0,1]), and ``evidence`` (list). These are v1
+heuristics that must be calibrated (``classifiers/calibration``).
 """
 
 from .directive_mood import classify as directive_mood

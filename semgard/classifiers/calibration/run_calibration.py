@@ -1,6 +1,6 @@
-"""Calibration d'un classifieur déterministe : matrice de confusion sur son jeu de test.
+"""Calibrate a deterministic classifier by computing a confusion matrix on its test set.
 
-Usage : python -m semgard.classifiers.calibration.run_calibration directive_mood
+Usage: python -m semgard.classifiers.calibration.run_calibration directive_mood
 """
 
 from __future__ import annotations
