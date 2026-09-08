@@ -8,3 +8,4 @@ build/
 logs/*.log
 *.db
 .DS_Store
+*.patch
