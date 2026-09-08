@@ -77,7 +77,7 @@ The default rule set (`semgard/lexicon/default_rules.yaml`) never blocks an asse
 
 SemGard consumes MorphoRepr and contributes two reusable pieces back to it; see [`docs/en/adr/ADR-001-morphorepr-notation.md`](docs/en/adr/ADR-001-morphorepr-notation.md):
 
-- a **parser parameterized by an `Inventory`** (`semgard/inventory.py`, `semgard/parser.py`), compatible with the forms used in the v0.30 paper; the intent is to upstream this abstraction into `morphorepr/utils/morphorepr_parser.py`, then remove SemGard's local copy;
+- a **parser parameterized by an `Inventory`** (`semgard/inventory.py`, `semgard/parser.py`), compatible with the forms used in the v0.30 paper; this abstraction has been upstreamed into `morphorepr/utils/morphorepr_parser.py` (MorphoRepr v6.11.0, ADR-002). Until SemGard depends on that release, `tests/test_morphorepr_conformance.py` checks that the local copy and the reference parser agree (run with `PYTHONPATH=/path/to/morphorepr pytest`; skipped otherwise);
 - the deterministic **`directive_mood`** classifier (`semgard/classifiers/`), a measurable counterpart of the volitive `-u` suffix that is absent from the v0.30 robust-property set.
 
 Longer term, SemGard (text channel) and MorphoRepr-Audit (latent inter-agent channel) are intended to share the same rule notation: *two channels, one notation*.

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `tests/test_morphorepr_conformance.py`: parity checks between `semgard.parser` and the MorphoRepr reference parser (v6.11.0, `Inventory` profile), and between the two `directive_mood` classifiers; skipped when MorphoRepr is not importable. Surfaced one laxity in the reference parser (trailing `+` accepted), fixed upstream.
+
 ## 0.1.0 — 2026-09-08
 
 - Technical specification v0.1 and ADR-001 (MorphoRepr notation, closed profile, parameterized parser).
