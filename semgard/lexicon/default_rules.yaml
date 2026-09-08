@@ -1,0 +1,80 @@
+# Jeu de règles par défaut SemGard v0.1.
+# Les regex portent sur des chaînes morphémiques du profil semgard :
+#   (kash|kod)? - vi? - (mal|ne)? - racine - ig? - (u|as|us|o)
+# Conventions : `match` = par terme ; `stream` = flux de segments ; `lexical` = texte.
+version: "0.1"
+rules:
+  # --- Instructions adressées au système ---------------------------------
+  - id: override_rules
+    description: Instruction adressée au système de contredire ou d'ignorer ses règles.
+    match: "^(?:kash-|kod-)?vi-(?:mal-|ne-)regul-(?:ig-)?(?:u|us)$"
+    min_gamma: 0.6
+    severity: critical
+    action: block
+
+  - id: rules_directive
+    description: Instruction adressée au système à propos de ses règles (sans polarité explicite).
+    match: "^(?:kash-|kod-)?vi-regul-(?:ig-)?(?:u|us)$"
+    min_gamma: 0.6
+    severity: high
+    action: quarantine
+
+  - id: persona_switch
+    description: Demande au système d'adopter une identité ou un mode (jailbreak par rôle).
+    match: "^(?:kash-|kod-)?vi-(?:mal-)?rol-(?:ig-)?(?:u|us)$"
+    min_gamma: 0.55
+    severity: high
+    action: quarantine
+
+  - id: secret_exfiltration
+    description: Demande de révéler ou transmettre des secrets, avec ou sans adresse explicite.
+    match: "^(?:kash-|kod-)?(?:vi-)?(?:ne-)?sekr-(?:ig-)?u$"
+    min_gamma: 0.6
+    severity: critical
+    action: block
+
+  - id: tool_abuse
+    description: Instruction adressée au système d'exécuter une action ou un outil.
+    match: "^(?:kash-|kod-)?vi-ilo-(?:ig-)?(?:u|us)$"
+    min_gamma: 0.6
+    severity: high
+    action: quarantine
+
+  - id: output_control
+    description: Contrainte imposée sur la réponse du système.
+    match: "^(?:kash-|kod-)?vi-(?:ne-)?elig-(?:ig-)?(?:u|us)$"
+    min_gamma: 0.6
+    severity: medium
+    action: mark
+
+  # --- Forme : caché ou encodé -------------------------------------------
+  - id: hidden_directive
+    description: Toute instruction dans un canal caché ou décodé est suspecte par construction.
+    match: "^(?:kash|kod)-.*-(?:u|us)$"
+    min_gamma: 0.5
+    severity: high
+    action: quarantine
+
+  - id: hidden_addressed
+    description: Contenu caché ou décodé adressé au système, même non directif.
+    match: "^(?:kash|kod)-vi-"
+    min_gamma: 0.5
+    severity: medium
+    action: mark
+
+  # --- Séquences ----------------------------------------------------------
+  - id: persona_then_action
+    description: Bascule de rôle suivie, dans les 4 segments, d'une demande d'action, de secret ou de sortie.
+    stream: "vi-(?:mal-)?rol-(?:ig-)?us(?:.|\\n){0,200}?(?:^|\\s|\\|)(?:vi-)?(?:mal-|ne-)?(?:sekr|ilo|elig|regul)-(?:ig-)?u"
+    within: 4
+    min_gamma: 0.5
+    severity: critical
+    action: block
+
+  # --- Marqueurs lexicaux (étage rapide, faible poids) -----------------------
+  - id: lexical_ignore_instructions
+    description: Marqueur lexical classique ; utile comme court-circuit rapide, mais faux positifs dans les tickets de sécurité.
+    lexical: "(?i)\\b(?:ignore|disregard|forget)\\s+(?:all\\s+|any\\s+)?(?:previous|prior|above|earlier|the)\\s+(?:instructions|prompts?|rules)|\\bignore[sz]?\\s+(?:toutes\\s+)?(?:les|tes|vos)\\s+(?:instructions|consignes)\\s+pr[ée]c[ée]dentes"
+    gamma: 0.5
+    severity: medium
+    action: mark
